@@ -128,9 +128,6 @@ check_data <- function(temp = NULL, int_rate = NULL) {
   if (!is.numeric(temp)) {
     stop("temperature data is not numeric. Please check it.")
   }
-  if (length(unique(temp)) < 4) {
-    stop("At least four different temperature treatments in the data are required.")
-  }
   if (!is.numeric(int_rate)) {
     stop("intrinsic rate of increase data is not numeric. Please check it.")
   }
@@ -670,7 +667,7 @@ plot_uncertainties <- function(bootstrap_uncertainties_tpcs,
     ggplot2::labs(x = 'Temperature',
                   y = italic(R)(T)~(d^-1),
                   title = my_title,
-                  subtitle =  paste(reference, pop_id),
+                  subtitle =  paste0(reference, " ID", pop_id),
                   caption = "Bootstrapping with residual resampling, see `rTPC` package vignettes"
     )
   return(plot_boot_tpcs)

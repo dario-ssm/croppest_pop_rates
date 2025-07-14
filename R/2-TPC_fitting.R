@@ -42,33 +42,69 @@ plot_tpcs(temp = gao2013_example$temperature,
           species = "Acyrthosiphon gossypii")
 
 # 3. Simulate TPCs -----------------------------------------------------------------
-example <- int_rate_data |> 
-  filter(id_pop == 24)
-fitted_ex <- fit_tpcs(temp = example$temperature,
-                      int_rate = example$int_rate,
-                      model_name = "all")
-plot_tpcs(temp = example$temperature,
-          int_rate = example$int_rate,
-          fitted_parameters = fitted_ex,
-          species = "Aphis gossypii",
-          reference = "xia1999")
+simulated_tpcs <- tibble()
 
-sim_tpcs_example <- predict_curves(temp = example$temperature,
-                                   int_rate = example$int_rate,
-                                   fitted_parameters = fitted_ex,
-                                   model_name_2boot = c("analytis_kontodimas",
-                                                        "atkin",
-                                                        "beta", "briere1",
-                                                        "johnk",
-                                                        "simp_beta",
-                                                        "simp_briere1",
-                                                        "taylor_sexton",
-                                                        "thomas",
-                                                        "weibull"))
+for(i in 1:67) {
+  cat(paste0("Beginning population ", i, " of 313\n"))
+  int_rate_i <-int_rate_data |> 
+    filter(id_pop == i) |> 
+    filter(!is.na(int_rate))
+  species_i <- int_rate_i |> 
+    slice(1) |> 
+    pull(species)
+  reference_i <- int_rate_i |> 
+    slice(1) |> 
+    pull(reference) |> 
+    as.character()
+  
+  fitted_tpc_i <- fit_tpcs(temp = int_rate_i$temperature,
+                           int_rate = int_rate_i$int_rate,
+                           model_name = "all")
+  plot_tpcs(temp = int_rate_i$temperature,
+            int_rate = int_rate_i$int_rate,
+            fitted_parameters = fitted_tpc_i,
+            species = species_i,
+            reference = paste0(reference_i,"; ID: ", i))
+  ggsave(paste0(here("data/data_sink/figures/supplementary_figs/fit_tpcs/id"), i, ".png"),
+         width = 2100,
+         height = 2100,
+         units = "px")
+  
+  fitted_tpc_equations_i <- unique(fitted_tpc_i$model_name)
+  
+  possible_error <- tryCatch(expr = {
+    sim_tpcs_i <- predict_curves(temp = int_rate_i$temperature,
+                               int_rate = int_rate_i$int_rate,
+                               fitted_parameters = fitted_tpc_i,
+                               model_name_2boot = fitted_tpc_equations_i,n_boots_samples = 100)
+  write_rds(sim_tpcs_i, file = paste0(here("data/data_sink/boots_tpcs/boots_tpc_"), i, ".rds"))
+  plot_uncertainties(bootstrap_uncertainties_tpcs = sim_tpcs_i,
+                     temp = int_rate_i$temperature,
+                     int_rate = int_rate_i$int_rate,
+                     species = species_i,
+                     reference = reference_i,
+                     pop_id = i)
+  ggsave(paste0(here("data/data_sink/figures/supplementary_figs/sim_tpcs/id"), i, ".png"),
+         width = 2100,
+         height = 2100,
+         units = "px")
+  }, # <- inside tryCatch
+  error = function(e) e)
+if (inherits(possible_error, "error")) {
+  fit_nls <- NULL
+  warning(paste0("Reference ID", i, "(",reference_i, ") could not fit bootstrapped TPCs"))
+}
+if (is.null(fit_nls)) {
+  simulated_tpcs <- simulated_tpcs
+} else {
+  simulated_tpcs <- bind_rows(simulated_tpcs, sim_tpcs_i) |> 
+  drop_na()
+  }
+  cat(paste0("Ending population ", i, " of 313\n"))
+ }
 
-plot_uncertainties(bootstrap_uncertainties_tpcs = sim_tpcs_example,
-                   temp = example$temperature,
-                   int_rate = example$int_rate,
-                   species = "Aphis gossypii",
-                   reference = "xia1999",
-                   pop_id = 24)
+TPCfit_example <- MuMIn::AICc()(fitted_tpc_i$model_fit[[1]])
+summary(TPCfit_example) 
+
+
+
