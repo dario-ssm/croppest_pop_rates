@@ -300,7 +300,7 @@ plot_tpcs <- function(temp = NULL,
                            reference = NULL) {
   
   check_data(temp, int_rate)
-  
+
   if (is.null(fitted_parameters)) {
     stop("`fitted_parameters` is NULL; use `mappestRisk::fit_tpcs()` to check that at least one model converged")
   }

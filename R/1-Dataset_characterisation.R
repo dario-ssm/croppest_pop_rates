@@ -85,8 +85,7 @@ ggsave(here("data/data_sink/figures/supplementary_figs/int_rate_dist.png"),
 
 ## c) Taxonomic orders ---------------------------------------------------------
 ###  distribution
-int_rate_taxa <- int_rate_data |> 
-  separate(order, into = c("order", "family"), sep = ": ", remove = TRUE) |> 
+int_rate_taxa <- int_rate_data |>  
   group_by(id_pop) |> 
   slice(1) |>
   ungroup() |> 
@@ -120,15 +119,14 @@ ggplot(int_rate_taxa, aes(y = fct_reorder(family, -n),
        y = "Family")
 
 ggsave(here("data/data_sink/figures/supplementary_figs/int_rate_taxa_family_facets.png"),
-       width = 1600,
-       height = 1600,
+       width = 2800,
+       height = 2800,
        units = "px")
 
 ## c) Source locations ---------------------------------------------------------
 int_rate_sf <- int_rate_data |> 
   st_as_sf(coords = c("lon", "lat"), crs = 4326, na.fail = FALSE) |> 
-  st_transform(crs = "+proj=wintri") |> 
-  separate(order, into = c("order", "family"), sep = ": ", remove = TRUE)
+  st_transform(crs = "+proj=wintri")  
 
 worldmap <- rnaturalearth::ne_countries(scale = 50) |> 
   st_transform(crs = "+proj=robin")
@@ -144,11 +142,14 @@ ggplot()+
                                "#A8B85D", "#EB5B4B", "#DECBD6", "#414F44"))
 
 
+ggsave(here("data/data_sink/figures/supplementary_figs/source_map.png"),
+       width = 2800,
+       height = 2800,
+       units = "px")
 #map it with leaflet
 
 int_rate_4leaflet <- int_rate_data |> 
-  separate(order, into = c("order", "family"), sep = ": ", remove = TRUE) |> 
-  group_by(id_pop) |> 
+group_by(id_pop) |> 
   slice(1)
 
 

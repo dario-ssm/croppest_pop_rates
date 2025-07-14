@@ -1,6 +1,7 @@
 library(tidyverse)
 library(here)
 library(readxl)
+library(MuMIn)
 source(here::here("R/S2-TPC_equations.R"))
 source(here::here("R/S1-Functions.R"))
 
@@ -11,6 +12,12 @@ int_rate_data <- read_excel(here("data/data_source/int_rate_dataset_new.xlsx")) 
   separate(order, into = c("order", "family"), sep = ": ", remove = TRUE)
 
 # 2. First TPC fitting -----------------------------------------------------------------
+tpcs_AICs_params <- tibble()
+
+pb <- progress::progress_bar$new(
+  format = "Fitting  TPCs [:bar] :percent",
+  total = 312,
+  clear = F)
 for(i in unique(int_rate_data$id_pop)) {
   int_rate_i <-int_rate_data |> 
     filter(id_pop == i) |> 
@@ -21,19 +28,16 @@ for(i in unique(int_rate_data$id_pop)) {
   reference_i <- int_rate_i |> 
     slice(1) |> 
     pull(reference)
-  
-  fitted_tpc_i <- fit_tpcs(temp = int_rate_i$temperature,
-                          int_rate = int_rate_i$int_rate,
-                          model_name = "all")
-  plot_tpcs(temp = int_rate_i$temperature,
-            int_rate = int_rate_i$int_rate,
-            fitted_parameters = fitted_tpc_i,
-            species = species_i,
-            life_stage = paste0(reference_i,"; ID: ", i))
-  ggsave(paste0(here("data/data_sink/figures/supplementary_figs/fit_tpcs/id"), i, ".png"),
-         width = 2100,
-         height = 2100,
-         units = "px")
+  fitted_tpc_i <- suppressMessages(fit_tpcs(temp = int_rate_i$temperature,
+                                            int_rate = int_rate_i$int_rate,
+                                            model_name = "all"))
+  aics_params_i <- fitted_tpc_i |> 
+    group_by(model_name) |> 
+    mutate(n_params = n_distinct(param_name)) |> 
+    slice(1) |> 
+    select(model_name, model_AIC, n_params)  
+  tpcs_AICs_params <- bind_rows(tpcs_AICs_params, aics_params_i)
+  pb$tick()
   }
 
 plot_tpcs(temp = gao2013_example$temperature,

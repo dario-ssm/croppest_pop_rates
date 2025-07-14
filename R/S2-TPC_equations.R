@@ -24,14 +24,14 @@ available_models <- dplyr::tibble(model_name = model_names) |>
     model_name == "simp_beta" ~ "rTPC::betatypesimplified_2008(temp, rho, alpha, beta)",
     model_name == "briere1" ~ "rTPC::briere1_1999(temp, tmin, tmax, a)",
     model_name == "simp_briere1" ~ "rTPC::briere1simplified_1999(temp, tmin, tmax, a)",
-    model_name == "deutsch" ~ "rTPC::rTPC::deutsch_2008(temp, rmax, topt, ctmax, a)",
+    model_name == "deutsch" ~ "rTPC::deutsch_2008(temp, rmax, topt, ctmax, a)",
     model_name == "johnk" ~ "rTPC::joehnk_2008(temp, rmax, topt, a, b, c)",
-    model_name == "pawar" ~ "rTPC::pawar_2018(temp, r_tref, e, eh,  topt, tref)",
+    model_name == "pawar" ~ "rTPC::pawar_2018(temp, r_tref, e, eh, topt, tref = 25)",
     model_name == "rezende" ~ "rTPC::rezende_2019(temp, q10, a, b, c)",
     model_name == "ssi" ~ "rTPC::sharpeschoolfull_1981(temp, r_tref, e, el, tl, eh, th, tref)",
     model_name == "taylor_sexton" ~ "rTPC::taylorsexton_1972(temp, rmax, tmin, topt)",
     model_name == "thomas" ~ "rTPC::thomas_2012(temp, a, b, c, t_ref)",
-    model_name == "tomlinson_philips" ~ "rTPC::tomlinsonphillips_2015(temp, a, b, c)",
+    model_name == "tomlinson_phillips" ~ "rTPC::tomlinsonphillips_2015(temp, a, b, c)",
     model_name == "weibull" ~ "rTPC::weibull_1995(temp, a, topt, b, c)")
     ) |>
   dplyr::mutate(params_formula = dplyr::case_when(
@@ -42,14 +42,14 @@ available_models <- dplyr::tibble(model_name = model_names) |>
     model_name == "simp_beta" ~ "rTPC::betatypesimplified_2008(.x, params_i[1], params_i[2], params_i[3])",
     model_name == "briere1" ~ "rTPC::briere1_1999(.x, params_i[1], params_i[2], params_i[3])",
     model_name == "simp_briere1" ~ "rTPC::briere1simplified_1999(.x, params_i[1], params_i[2], params_i[3])",
-    model_name == "deutsch" ~ "rTPC::rTPC::deutsch_2008(.x, params_i[1], params_i[2], params_i[3], params_i[4])",
+    model_name == "deutsch" ~ "rTPC::deutsch_2008(.x, params_i[1], params_i[2], params_i[3], params_i[4])",
     model_name == "johnk" ~ "rTPC::joehnk_2008(.x, params_i[1], params_i[2], params_i[3], params_i[4], params_i[5])",
-    model_name == "pawar" ~ "rTPC::pawar_2018(.x, params_i[1], params_i[2], params_i[3], params_i[4], params_i[5])",
+    model_name == "pawar" ~ "rTPC::pawar_2018(.x, params_i[1], params_i[2], params_i[3], params_i[4], tref = 25)",
     model_name == "rezende" ~ "rTPC::rezende_2019(.x, params_i[1], params_i[2], params_i[3], params_i[4])",
     model_name == "ssi" ~ "rTPC::sharpeschoolfull_1981(.x, params_i[1], params_i[2], params_i[3], params_i[4], params_i[5], params_i[6], tref = 25)",
     model_name == "taylor_sexton" ~ "rTPC::taylorsexton_1972(.x, params_i[1], params_i[2], params_i[3])",
     model_name == "thomas" ~ "rTPC::thomas_2012(.x, params_i[1], params_i[2], params_i[3], params_i[4])",
-    model_name == "tomlinson_philips" ~ "rTPC::tomlinsonphillips_2015(.x, params_i[1], params_i[2], params_i[3])",
+    model_name == "tomlinson_phillips" ~ "rTPC::tomlinsonphillips_2015(.x, params_i[1], params_i[2], params_i[3])",
     model_name == "weibull" ~ "rTPC::weibull_1995(.x, params_i[1], params_i[2], params_i[3], params_i[4])"
     )) |>
   dplyr::mutate(working_formula = dplyr::case_when(
@@ -60,14 +60,14 @@ available_models <- dplyr::tibble(model_name = model_names) |>
     model_name == "simp_beta" ~ "rTPC::betatypesimplified_2008(.x, start_vals[1], start_vals[2], start_vals[3])",
     model_name == "briere1" ~ "rTPC::briere1_1999(.x, start_vals[1], start_vals[2], start_vals[3])",
     model_name == "simp_briere1" ~ "rTPC::briere1simplified_1999(.x, start_vals[1], start_vals[2], start_vals[3])",
-    model_name == "deutsch" ~ "rTPC::rTPC::deutsch_2008(.x, start_vals[1], start_vals[2], start_vals[3], start_vals[4])",
+    model_name == "deutsch" ~ "rTPC::deutsch_2008(.x, start_vals[1], start_vals[2], start_vals[3], start_vals[4])",
     model_name == "johnk" ~ "rTPC::joehnk_2008(.x, start_vals[1], start_vals[2], start_vals[3], start_vals[4], start_vals[5])",
-    model_name == "pawar" ~ "rTPC::pawar_2018(.x, start_vals[1], start_vals[2], start_vals[3], start_vals[4], start_vals[5])",
+    model_name == "pawar" ~ "rTPC::pawar_2018(.x, start_vals[1], start_vals[2], start_vals[3], start_vals[4], tref = 25)",
     model_name == "rezende" ~ "rTPC::rezende_2019(.x, start_vals[1], start_vals[2], start_vals[3], start_vals[4])",
     model_name == "ssi" ~ "rTPC::sharpeschoolfull_1981(.x, start_vals[1], start_vals[2], start_vals[3], start_vals[4], start_vals[5], start_vals[6], tref = 25)",
     model_name == "taylor_sexton" ~ "rTPC::taylorsexton_1972(.x, start_vals[1], start_vals[2], start_vals[3])",
     model_name == "thomas" ~ "rTPC::thomas_2012(.x, start_vals[1], start_vals[2], start_vals[3], start_vals[4])",
-    model_name == "tomlinson_philips" ~ "rTPC::tomlinsonphillips_2015(.x, start_vals[1], start_vals[2], start_vals[3])",
+    model_name == "tomlinson_phillips" ~ "rTPC::tomlinsonphillips_2015(.x, start_vals[1], start_vals[2], start_vals[3])",
     model_name == "weibull" ~ "rTPC::weibull_1995(.x, start_vals[1], start_vals[2], start_vals[3], start_vals[4])"
   )) |>
   dplyr::mutate(n_params = dplyr::case_when(
@@ -80,12 +80,12 @@ available_models <- dplyr::tibble(model_name = model_names) |>
     model_name == "simp_briere1" ~ 3,
     model_name == "deutsch" ~ 4,
     model_name == "johnk" ~ 5,
-    model_name == "pawar" ~ 5,
+    model_name == "pawar" ~ 4,
     model_name == "rezende" ~ 4,
     model_name == "ssi" ~ 6,
     model_name == "taylor_sexton" ~ 3,
     model_name == "thomas" ~ 4,
-    model_name == "tomlinson_philips" ~ 3,
+    model_name == "tomlinson_phillips" ~ 3,
     model_name == "weibull" ~ 4
     ))
 
