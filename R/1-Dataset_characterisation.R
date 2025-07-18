@@ -67,6 +67,14 @@ ggsave(here("data/data_sink/figures/supplementary_figs/temperatures_chambers.png
        height = 1600,
        units = "px")
 
+int_rate_data_positive <- int_rate_data |> 
+  filter(int_rate > 0) |>
+  pull(temperature)
+
+tmin_abs <- min(int_rate_data_positive)
+tmax_abs <- max(int_rate_data_positive)
+
+
 ## b) intrinsic rates of increase ---------------------------------------------------------
 ### int_rates distribution
 int_rate_title <- expression(italic(r)[m]~(day^-1))

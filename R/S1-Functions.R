@@ -597,80 +597,57 @@ due to convergence problems")
   return(sim_boots_tpcs)
 }
 
-# 5. Plot Simulated TPCs  -----------------------------------------------------------------
-plot_uncertainties <- function(bootstrap_uncertainties_tpcs,
-                               temp,
-                               int_rate,
-                               species = NULL,
-                               reference = NULL,
-                               pop_id = NULL) {
+# 6. Calculate Thermal Limits  -----------------------------------------------------------------
+get_therm_lims <- function(boots_tpc,
+                           temp,
+                           int_rate,
+                           tpc_model,
+                           epsilon = 1e-4
+                           ) {
+  # Find where the predicted values cross zero (or near-zero, defined by epsilon)
+  boots_near_zero <- boots_tpc |> 
+    mutate(is_near_zero = ifelse(abs(preds <= epsilon),
+                                  TRUE,
+                                  FALSE)) #|>   tidyr::drop_na()
+  fitted_tpc_i <- suppressMessages(
+    fit_tpcs(temp = int_rate_i$temperature,
+             int_rate = int_rate_i$int_rate,
+             model_name = tpc_model))
   
-  check_data(temp, int_rate)
+  topt_i <- as.numeric(rTPC::calc_params(model = fitted_tpc_i$model_fit[[1]])[2])
   
-  if(!is.character(species) &&
-     !is.null(species)) {
-    stop("`species` must be a character or `NULL`")
-  }
+  ##left-side
+  boots_tpc_left <- boots_near_zero |> 
+    filter(temp < topt_i) |> 
+    filter(abs(preds) < 1)
+  therm_lim_minimum_index <- max(which(boots_tpc_left$is_near_zero))
+  therm_lim_minimum <- boots_tpc_left$temp[therm_lim_minimum_index]
   
-  if(!is.character(reference) &&
-     !is.null(reference)) {
-    stop("`reference` must be a character or `NULL`")
-  }
+  ##right-side
+  boots_tpc_right <- boots_near_zero |> 
+    filter(temp >= topt_i) |> 
+    filter(abs(preds) < 1)
+  if(!any(boots_tpc_right$is_near_zero)) {
+    therm_lim_maximum <- max(boots_tpc_right$temp)
+  } else {
+    therm_lim_maximum_index <- min(which(boots_tpc_right$is_near_zero))
+    therm_lim_maximum <- boots_tpc_right$temp[therm_lim_maximum_index]
+    
+    }
+  if(therm_lim_minimum < 0 || is.na(therm_lim_minimum)) { therm_lim_minimum <- NA}
+  if(therm_lim_maximum > 40 || #maximum measured positive intrinsic rate in our data set 
+     is.na(therm_lim_maximum)) {therm_lim_maximum <- NA} 
+  therm_lims_i <- c(therm_lim_minimum,
+                    therm_lim_maximum) 
+  names(therm_lims_i) <- c("tmin", "tmax")
   
-  if(!is.data.frame(bootstrap_uncertainties_tpcs)) {
-    stop("`bootstrap_uncertainties_tpcs` must be a  `data.frame` or `tibble`
-    inherited from the output of `mappestRisk::predict_curves()` function with
-    `propagate_uncertainty = TRUE` and `n_boots_samples > 0`.")
-  }
-  if(suppressWarnings(any(!c("model_name_iter", "boots_iter", "temp", "preds", "curvetype") %in% colnames(bootstrap_uncertainties_tpcs)))){
-    stop("`bootstrap_uncertainties_tpcs` must be a  `data.frame` or `tibble` inherited from the
-    output of `mappestRisk::predict_curves()` function with
-    `propagate_uncertainty = TRUE` and `n_boots_samples > 0`.")
-  }
-  if(nrow(bootstrap_uncertainties_tpcs) == 0){
-    stop("No bootstrapped or estimate predictions are available.
-         Please check `bootstrap_uncertainties_tpcs` and consider using a different model or
-         setting `propagate_uncertainty` to `FALSE` in `predict_curves()`")
-  }
-  if(!any(bootstrap_uncertainties_tpcs$curvetype == "uncertainty")){
-    warning("No bootstrapped predictions available. Please check `bootstrap_uncertainties_tpcs`.
-             Plotting only the central curve.")
-  }
-  popdata <- dplyr::tibble(temp,
-                           int_rate)
-  central_curve <- bootstrap_uncertainties_tpcs |>
-    dplyr::filter(curvetype == "estimate")
-  uncertainty_curves <- bootstrap_uncertainties_tpcs |>
-    dplyr::filter(curvetype == "uncertainty")
-  
-  my_title <- substitute(italic(paste(x)), list(x = species))
-  plot_boot_tpcs <- ggplot2::ggplot() +
-    ggplot2::geom_line(data = uncertainty_curves,
-                       ggplot2::aes(x = temp,
-                                    y = preds,
-                                    group = boots_iter),
-                       col = "#0E4D62", #'#586A64',
-                       alpha = 0.08,
-                       linewidth = 0.32) +
-    ggplot2::geom_line(data = central_curve,
-                       ggplot2::aes(x = temp,
-                                    y = preds),
-                       col = "#CF8143", #'#B1492E',
-                       linewidth = .85) +
-    ggplot2::geom_point(data = popdata,
-                        ggplot2::aes(temp, int_rate),
-                        size = 2) +
-    ggplot2::facet_wrap(~model_name_iter, scales = "free")+
-    ggplot2::scale_x_continuous(limits = c(0, 50))+
-    ggplot2::scale_y_continuous(limits = c(0, 1.5*max(popdata$int_rate, na.rm = TRUE)))+
-    ggplot2::theme_bw(base_size = 12) +
-    ggplot2::labs(x = 'Temperature',
-                  y = italic(R)(T)~(d^-1),
-                  title = my_title,
-                  subtitle =  paste0(reference, " ID", pop_id),
-                  caption = "Bootstrapping with residual resampling, see `rTPC` package vignettes"
-    )
-  return(plot_boot_tpcs)
-}
 
-
+  return(therm_lims_i)
+  }
+  
+example_tlim <- get_therm_lims(boots_tpc = boots_tpc_id_i,
+                               temp = int_rate_i$temperature,
+                               int_rate = int_rate_i$temperature,
+                               tpc_model = tpc_selected_i,
+                               epsilon = 1e-4)
+example_tlim
