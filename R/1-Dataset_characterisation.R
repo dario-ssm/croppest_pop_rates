@@ -10,7 +10,9 @@ int_rate_data <- read_excel(here("data/data_source/int_rate_dataset_new.xlsx")) 
          id_pop = as_factor(id_pop)) |> 
   separate(order, into = c("order", "family"), sep = ": ", remove = TRUE)
 
-
+int_rate_data_syst <- int_rate_data |> 
+  filter(source == "this systematic review")
+unique(int_rate_data$family)
 # id_pop 72 had been manually calculated since the rate was extremely high for a lepidopteran species, seemd a typo error. 
 # the values included were recalculated based on the table as r_m = ln(R_0)/T
 
@@ -78,7 +80,7 @@ tmax_abs <- max(int_rate_data_positive)
 ## b) intrinsic rates of increase ---------------------------------------------------------
 ### int_rates distribution
 int_rate_title <- expression(italic(r)[m]~(day^-1))
-
+summary(int_rate_data$int_rate)
 ggplot(int_rate_data, aes(x = int_rate))+
   geom_histogram(fill = "darkcyan",
                  color = "gray73", linetype = "dashed",bins = 90)+

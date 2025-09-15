@@ -604,50 +604,139 @@ get_therm_lims <- function(boots_tpc,
                            tpc_model,
                            epsilon = 1e-4
                            ) {
+
   # Find where the predicted values cross zero (or near-zero, defined by epsilon)
-  boots_near_zero <- boots_tpc |> 
-    mutate(is_near_zero = ifelse(abs(preds <= epsilon),
-                                  TRUE,
-                                  FALSE)) #|>   tidyr::drop_na()
   fitted_tpc_i <- suppressMessages(
     fit_tpcs(temp = int_rate_i$temperature,
              int_rate = int_rate_i$int_rate,
              model_name = tpc_model))
   
   topt_i <- as.numeric(rTPC::calc_params(model = fitted_tpc_i$model_fit[[1]])[2])
-  
+  rmax_i <- as.numeric(rTPC::calc_params(model = fitted_tpc_i$model_fit[[1]])[1])
   ##left-side
-  boots_tpc_left <- boots_near_zero |> 
-    filter(temp < topt_i) |> 
-    filter(abs(preds) < 1)
-  therm_lim_minimum_index <- max(which(boots_tpc_left$is_near_zero))
-  therm_lim_minimum <- boots_tpc_left$temp[therm_lim_minimum_index]
-  
-  ##right-side
-  boots_tpc_right <- boots_near_zero |> 
-    filter(temp >= topt_i) |> 
-    filter(abs(preds) < 1)
-  if(!any(boots_tpc_right$is_near_zero)) {
-    therm_lim_maximum <- max(boots_tpc_right$temp)
-  } else {
-    therm_lim_maximum_index <- min(which(boots_tpc_right$is_near_zero))
-    therm_lim_maximum <- boots_tpc_right$temp[therm_lim_maximum_index]
-    
+  therm_lims <- tibble()
+  for(iter in unique(boots_tpc$boots_iter)) {
+    if(is.na(iter)) {
+      boots_near_zero <- boots_tpc |> 
+        filter(is.na(boots_iter))|> 
+        mutate(is_near_zero = ifelse(abs(preds <= epsilon),
+                                     TRUE,
+                                     FALSE)) 
+    } else {
+      boots_near_zero <- boots_tpc |> 
+      filter(boots_iter == iter) |> 
+        mutate(is_near_zero = ifelse(abs(preds <= epsilon),
+                                     TRUE,
+                                     FALSE)) 
     }
-  if(therm_lim_minimum < 0 || is.na(therm_lim_minimum)) { therm_lim_minimum <- NA}
-  if(therm_lim_maximum > 40 || #maximum measured positive intrinsic rate in our data set 
-     is.na(therm_lim_maximum)) {therm_lim_maximum <- NA} 
-  therm_lims_i <- c(therm_lim_minimum,
-                    therm_lim_maximum) 
-  names(therm_lims_i) <- c("tmin", "tmax")
-  
 
-  return(therm_lims_i)
+    boots_tpc_left <- boots_near_zero |> 
+      filter(temp < topt_i) |> 
+      filter(abs(preds) < 1)
+    if(!any(boots_tpc_left$is_near_zero)) {
+      therm_lim_minimum <- min(boots_tpc_left$temp, na.rm = TRUE)
+      left_semimaximum_index <- max(which(boots_tpc_left$preds <= (rmax_i/2)))
+      left_semimaximum <- boots_tpc_left$temp[left_semimaximum_index]
+    } else {
+      therm_lim_minimum_index <- max(which(boots_tpc_left$is_near_zero), na.rm = TRUE)
+      therm_lim_minimum <- boots_tpc_left$temp[therm_lim_minimum_index]
+      
+      left_semimaximum_index <- max(which(boots_tpc_left$preds <= (rmax_i/2)))
+      left_semimaximum <- boots_tpc_left$temp[left_semimaximum_index]
+    }
+    
+    ##right-side
+    boots_tpc_right <- boots_near_zero |> 
+      filter(temp >= topt_i) |> 
+      filter(abs(preds) < 1)
+    if(!any(boots_tpc_right$is_near_zero)) {
+      therm_lim_maximum <- max(boots_tpc_right$temp, na.rm = TRUE)
+      right_semimaximum_index <- min(which(boots_tpc_right$preds <= (rmax_i/2)), na.rm = TRUE)
+      right_semimaximum <- boots_tpc_right$temp[right_semimaximum_index]
+    } else {
+      therm_lim_maximum_index <- min(which(boots_tpc_right$is_near_zero), na.rm = TRUE)
+      therm_lim_maximum <- boots_tpc_right$temp[therm_lim_maximum_index]
+      right_semimaximum_index <- min(which(boots_tpc_right$preds <= (rmax_i/2)), na.rm = TRUE)
+      right_semimaximum <- boots_tpc_right$temp[right_semimaximum_index]
+      
+    }
+    if(therm_lim_minimum < 0 || is.na(therm_lim_minimum)) { therm_lim_minimum <- NA}
+    if(therm_lim_maximum > 42 || #2 degrees above the maximum measured positive intrinsic rate in our data set 
+       is.na(therm_lim_maximum)) {therm_lim_maximum <- NA} 
+    therm_lims_i <- c(therm_lim_minimum,
+                      therm_lim_maximum,
+                      topt_i,
+                      left_semimaximum,
+                      right_semimaximum,  
+                      rmax_i) 
+    names(therm_lims_i) <- c("tmin", "tmax", "topt", "t_L50", "t_R50", "rmax")
+    therm_lims <- bind_rows(therm_lims, therm_lims_i)
   }
+  return(therm_lims)
+}
+
+
+# 7. Sim&Plot Hierarchical Models  -----------------------------------------------------------------
+
+sim_and_plot_linears <- function(model_object,
+                                 var_x,
+                                 var_y,
+                                 n_sims,
+                                 your_title,
+                                 your_subtitle,
+                                 lab_x,
+                                 lab_y,
+                                 color_points,
+                                 color_central,
+                                 color_uncertainty) {
   
-example_tlim <- get_therm_lims(boots_tpc = boots_tpc_id_i,
-                               temp = int_rate_i$temperature,
-                               int_rate = int_rate_i$temperature,
-                               tpc_model = tpc_selected_i,
-                               epsilon = 1e-4)
-example_tlim
+  modelled_relation <- tibble(indep_var = var_x, 
+                              dep_var = var_y)
+  sum_model <- summary(model_object)
+  model_params <- tibble(intercept = sum_model$coefficients[1,1],
+                         slope =  sum_model$coefficients[2,1],
+                         intercept_se = sum_model$coefficients[1,2],
+                         slope_se =  sum_model$coefficients[2,2],
+                         sample_size = nrow(modelled_relation)) |> 
+    mutate(intercept_sd = intercept_se * sqrt(sample_size),
+           slope_sd = slope_se * sqrt(sample_size))
+  set.seed(2023)
+  sim_slope_model <- rnorm(n_sims, 
+                           mean = model_params |> select(slope) |> as_vector(),
+                           sd = model_params |> select(slope_se) |> as_vector())
+  
+  sim_intercept_model <- rnorm(n_sims, 
+                               mean = model_params |> select(intercept) |> as_vector(),
+                               sd = model_params |> select(intercept_se) |> as_vector())
+  
+  sim_model_lm <- tibble(slope = sim_slope_model,
+                         intercept = sim_intercept_model)
+  
+  n_draws <- n_sims
+  alpha_level <- .15
+  col_draw <- color_uncertainty
+  col_median <-  color_central
+  
+  model_plot <- ggplot(modelled_relation,
+                       aes(x = indep_var, y = dep_var))+
+    labs(title= your_title,
+         subtitle= your_subtitle,
+         x = lab_x,
+         y = lab_y)+
+    ggthemes::theme_few()+ 
+    geom_abline(aes(slope = slope,
+                    intercept =intercept),
+                data = slice_sample(sim_model_lm, n = n_draws),
+                color = col_draw,
+                alpha = alpha_level)+
+    geom_abline(aes(slope = model_params$slope,
+                    intercept = model_params$intercept),
+                color = color_central,
+                linewidth = 1.4)+
+    geom_point(alpha=0.82,
+               color= color_points)+
+    theme(plot.title = element_text(face = "bold"))
+  
+  model_plot
+  
+}
