@@ -158,7 +158,7 @@ for(i in unique(filtered_tpcs$id_pop)[271:282]) {
 writexl::write_xlsx(tpcs_AICs_params, here("data/data_sink/tpcs_aics_params.xlsx"))
 
 
-# 4. Select deltas AICs -----------------------------------------------------------------
+# 5. Select deltas AICs -----------------------------------------------------------------
 int_rate_data_chrs <- int_rate_data |> 
   select(id_pop, reference, species) |> 
   group_by(id_pop) |> 
@@ -180,5 +180,34 @@ tpc_modelselection_aics <- readxl::read_excel(here("data/data_sink/aics_for_delt
   
 writexl::write_xlsx(tpc_modelselection_aics,
                     here("data/data_sink/tpcs_selection_filters.xlsx"))
+
+
+# 6. plot selected TPCs ------------------------------------------------------
+
+# 6. plot selected TPCs ------------------------------------------------------
+tpcs_selected <- readxl::read_excel(here("data/data_sink/tpcs_selection_filters_completed.xlsx")) |> 
+  filter(step3_uncertainties == "y")
+
+tpcs_boots_all <- tibble()
+pb <- progress::progress_bar$new(
+  format = "Binding Bootstrapped TPCs [:bar] :percent",
+  total = 246,
+  clear = F)
+for(i in unique(tpcs_selected$id_pop)) {
+  tpc_boots_i <- read_rds(here(paste0("data/data_sink/boots_tpcs/boots_tpc_", i, ".rds"))) |> 
+    mutate(id_pop = i)
+  tpcs_boots_all <- bind_rows(tpcs_boots_all, tpc_boots_i)
+  pb$tick()
+}
+
+tpcs_boots_all
+
+int_rate_tpcs_boots <- inner_join(tpcs_boots_all, int_rate_data)
+plot_uncertainties(temp = ,
+                   int_rate = ,
+                   bootstrap_tpcs = ,
+                   species = ,
+                   life_stage = ,
+                   alpha = )
 
 

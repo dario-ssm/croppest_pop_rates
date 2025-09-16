@@ -597,6 +597,61 @@ due to convergence problems")
   return(sim_boots_tpcs)
 }
 
+
+plot_uncertainties <- function(temp = NULL, 
+                               int_rate = NULL, 
+                               bootstrap_tpcs = NULL,
+                               species = NULL, 
+                               life_stage = NULL, 
+                               alpha = 0.2) 
+{
+  check_data(temp, int_rate)
+  if (!is.character(species) && !is.null(species)) {
+    stop("`species` must be a character or `NULL`")
+  }
+  if (!is.character(life_stage) && !is.null(life_stage)) {
+    stop("`life_stage` must be a character or `NULL`")
+  }
+  if (!is.data.frame(bootstrap_tpcs)) {
+    stop("`bootstrap_tpcs` must be a  `data.frame` or `tibble`\n    as produced by `mappestRisk::predict_curves()` function with\n    `propagate_uncertainty = TRUE` and `n_boots_samples > 0`.")
+  }
+  if (!all(c("model_name", "boot_iter", "temp", "int_rate", 
+             "curvetype") %in% names(bootstrap_tpcs))) {
+    stop("`bootstrap_tpcs` must be a  `data.frame` or `tibble`\n    as produced by `mappestRisk::predict_curves()` function with\n    `propagate_uncertainty = TRUE` and `n_boots_samples > 0`.")
+  }
+  if (nrow(bootstrap_tpcs) == 0) {
+    stop("No bootstrapped or estimate predictions are available.\n         Please check `bootstrap_tpcs` and consider using a different model or\n         setting `propagate_uncertainty` to `FALSE` in `predict_curves()`")
+  }
+  if (!any(bootstrap_tpcs$curvetype == "uncertainty")) {
+    warning("No bootstrapped predictions available. Please check `bootstrap_tpcs`.\n             Plotting only the central curve.")
+  }
+  if (alpha < 0 | alpha > 1) {
+    stop("alpha must be a number between 0 (complete transparency) and 1 (solid line).")
+  }
+  devdata <- dplyr::tibble(temp, int_rate)
+  central_curve <- dplyr::filter(bootstrap_tpcs, curvetype == 
+                                   "estimate")
+  uncertainty_curves <- dplyr::filter(bootstrap_tpcs, curvetype == 
+                                        "uncertainty")
+  my_title <- substitute(italic(paste(x)), list(x = species))
+  plot_boot_tpcs <- ggplot2::ggplot() + ggplot2::geom_line(data = uncertainty_curves, 
+                                                           ggplot2::aes(x = temp, y = int_rate, group = boot_iter), 
+                                                           col = "#0E4D62", alpha = alpha, linewidth = 0.32) + 
+    ggplot2::geom_line(data = central_curve, ggplot2::aes(x = temp, 
+                                                          y = int_rate), col = "#CF8143", linewidth = 0.85) + 
+    ggplot2::geom_point(data = devdata, ggplot2::aes(temp, 
+                                                     int_rate), size = 2) + ggplot2::facet_wrap(~model_name, 
+                                                                                                scales = "free") + ggplot2::scale_x_continuous(limits = c(0, 
+                                                                                                                                                          50)) + ggplot2::scale_y_continuous(limits = c(0, 1.5 * 
+                                                                                                                                                                                                          max(devdata$int_rate, na.rm = TRUE))) + ggplot2::theme_bw(base_size = 12) + 
+    ggplot2::labs(x = "Temperature", y = italic(r)[m](T) ~ 
+                    (d^-1), title = my_title, subtitle = life_stage, 
+                  caption = "Bootstrapping with residual resampling, see `rTPC` package vignettes")
+  return(plot_boot_tpcs)
+  }
+
+
+
 # 6. Calculate Thermal Limits  -----------------------------------------------------------------
 get_therm_lims <- function(boots_tpc,
                            temp,
