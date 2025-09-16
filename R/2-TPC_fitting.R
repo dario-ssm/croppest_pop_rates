@@ -1,4 +1,3 @@
-library(tidyverse)
 library(here)
 library(readxl)
 library(MuMIn)
@@ -182,7 +181,6 @@ writexl::write_xlsx(tpc_modelselection_aics,
                     here("data/data_sink/tpcs_selection_filters.xlsx"))
 
 
-# 6. plot selected TPCs ------------------------------------------------------
 
 # 6. plot selected TPCs ------------------------------------------------------
 tpcs_selected <- readxl::read_excel(here("data/data_sink/tpcs_selection_filters_completed.xlsx")) |> 
@@ -194,20 +192,92 @@ pb <- progress::progress_bar$new(
   total = 246,
   clear = F)
 for(i in unique(tpcs_selected$id_pop)) {
+  equation_i <- tpcs_selected |> 
+    filter(id_pop == 1) |> 
+    pull(tpc_model)
   tpc_boots_i <- read_rds(here(paste0("data/data_sink/boots_tpcs/boots_tpc_", i, ".rds"))) |> 
-    mutate(id_pop = i)
+    mutate(id_pop = i) |> 
+    filter(model_name_iter == equation_i)
   tpcs_boots_all <- bind_rows(tpcs_boots_all, tpc_boots_i)
   pb$tick()
 }
 
 tpcs_boots_all
 
-int_rate_tpcs_boots <- inner_join(tpcs_boots_all, int_rate_data)
-plot_uncertainties(temp = ,
-                   int_rate = ,
-                   bootstrap_tpcs = ,
-                   species = ,
-                   life_stage = ,
-                   alpha = )
+int_rate_max <- int_rate_data |> 
+  group_by(id_pop) |> 
+  summarise(int_rate_max = max(int_rate, na.rm = TRUE),
+            species = unique(species),
+            reference = unique(reference))
+
+tpcs_boots_intrate <- inner_join(tpcs_boots_all, int_rate_max) |> 
+  filter(preds <= 1.5*int_rate_max) |> 
+  mutate(label_pops = paste0("Population ", id_pop)) 
+
+int_rate_sub <- int_rate_data |> 
+  filter(id_pop %in% unique(tpcs_boots_intrate$id_pop))
+
+label_vec <- setNames(tpcs_boots_intrate$label_pops, 
+                      tpcs_boots_intrate$id_pop)
+
+# Get unique IDs and split into chunks of 24
+id_chunks <- split(unique(tpcs_boots_intrate$id_pop), ceiling(seq_along(unique(tpcs_boots_intrate$id_pop)) / 41))
 
 
+for (i in seq_along(id_chunks)) {
+  ids <- id_chunks[[i]]
+  tpcs_boots_intrate_sub <- tpcs_boots_intrate|> 
+    filter(id_pop %in% ids)
+  int_rate_sub <- int_rate_data |> 
+    filter(id_pop %in% ids)
+  plot_boot_tpcs <- ggplot2::ggplot() +
+    ggplot2::geom_line(data = tpcs_boots_intrate_sub |> 
+                         filter(curvetype == "uncertainty"), 
+                       aes(x = temp, y = preds, 
+                           group = as_factor(boots_iter)), 
+                       col = "#0E4D62", linewidth = 0.32, alpha = .16) + 
+    ggplot2::geom_line(data = tpcs_boots_intrate_sub |> 
+                         filter(curvetype == "estimate"), 
+                       aes(x = temp, y = preds), 
+                       col = "#CF8143", linewidth = 0.85) + 
+    ggplot2::geom_point(data = int_rate_sub, 
+                        ggplot2::aes(temperature, int_rate), size = 2)+
+    ggplot2::scale_x_continuous(limits = c(0, 50)) +
+    ggplot2::theme_bw(base_size = 12) + 
+    facet_wrap(~id_pop, scales = "free", 
+               labeller = as_labeller(label_vec),
+               ncol = 6)+
+    ggplot2::labs(x = "Temperature (ºC)", y = italic(r)[m] ~ 
+                    (d^-1), 
+                  title = my_title, 
+                  subtitle = life_stage, 
+                  caption = "Bootstrapping with residual resampling, see `rTPC` package vignettes")
+  ggsave(
+    filename = here(paste0("data/data_sink/figures/supplementary_figs/tpcs_facet_page_", i, ".png")),
+    plot = plot_boot_tpcs,
+    width = 8.27, height = 11.69, units = "in", dpi = 300  # A4 size in inches
+  )
+}
+
+
+# 7. thermal_limits_all ------------------------------------------------------
+
+thermal_limits_all <- tibble()
+for(i in unique(tpcs_boots_all$id_pop)){
+  cat(paste0("Calculating thermal limits for population ", which(unique(tpcs_boots_all$id_pop) == i), " of 246\n" ))
+  tpcs_boots_i <- tpcs_boots_all |> 
+    filter(id_pop == i)
+  int_rate_i <- int_rate_data |> 
+    filter(id_pop == i) |> 
+    filter(!is.na(int_rate))
+  tpc_equation_i <- tpcs_boots_i$model_name_iter[1]
+  thermal_limits_i <- get_therm_lims(boots_tpc = tpcs_boots_i,
+                                     temp = int_rate_i$temperature,
+                                     int_rate = int_rate_i$int_rate,
+                                     tpc_model = tpc_equation_i,
+                                     epsilon = 1e-04) |> 
+    mutate(id_pop = i)
+  thermal_limits_all <- bind_rows(thermal_limits_all, thermal_limits_i)
+  pb$tick
+}
+write_rds(thermal_limits_all, here("data/data_sink/thermal_limits_all.rds"))
